@@ -1,0 +1,17 @@
+{
+  "name": "quoteproof",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "assemble": "node scripts/assemble.mjs",
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/core.test.mjs tests/api.test.mjs tests/page.test.mjs tests/access.test.mjs",
+    "build": "node scripts/assemble.mjs && bash scripts/build.sh",
+    "validate": "node scripts/validate-artifact.mjs",
+    "db:generate": "node scripts/generate-db.mjs"
+  }
+}
