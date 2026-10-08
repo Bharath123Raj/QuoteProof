@@ -44,7 +44,7 @@ SHARED_USER_MINUTE_LIMIT=12
 
 The monthly budget is global to this app; daily and rolling-minute limits apply per signed-in user. Calendar boundaries use UTC. One atomic conditional SQL insert reserves each shared outbound attempt before the SerpApi fetch. Attempts include failures/timeouts; they are not refunded. Cache hits do not make an upstream attempt and are not counted. These limits are conservative app controls, not actual SerpApi credit balances. Other projects using the same key can exhaust the provider account before this app reaches its own limit. Limits can also stop a multi-search audit midway; the UI gives an actionable error and does not invent a complete report.
 
-Counters store a hashed platform user identifier, timestamp, UTC day/month and an attempt UUID. They do not store keys, email addresses, quotes or search results. Hashes are pseudonymous identifiers, not a claim of anonymization. The current version retains usage records until the owner removes them; there is no automatic retention cleanup.
+Counters store a hashed platform user identifier (or provider-prefixed verified email on Cloudflare), timestamp, UTC day/month and an attempt UUID. They do not store keys, email addresses, quotes or search results. Hashes are pseudonymous identifiers, not a claim of anonymization. The current version retains usage records until the owner removes them; there is no automatic retention cleanup.
 
 ## Hosted Sites setup
 
@@ -52,13 +52,17 @@ A local `.env` is **not uploaded** and does not configure the hosted site. Set `
 
 The manifest declares D1 binding `DB`. The deployment package carries the initial SQL migration under `.openai/drizzle`. Sites provisions the database and applies hosted migrations. The app uses Sites dispatch's authenticated user headers, plus top-level **Sign in with ChatGPT / Sign out** links. There is no custom email/password database or email OTP provider.
 
-`AUTH_PROVIDER=sites` is only valid behind the Sites platform's trusted authentication boundary. Do not set it on another publicly exposed server that forwards arbitrary client identity headers. Shared mode on another hosting provider needs a trusted authentication adapter and persistent DB; until then, use personal-key or synthetic mode. The loopback Node adapter is for local use only.
+`AUTH_PROVIDER=sites` is only valid behind the Sites platform's trusted authentication boundary. Do not set it on another publicly exposed server that forwards arbitrary client identity headers. For direct Cloudflare hosting, use the included `cloudflare-access` adapter and D1 configuration described in [CLOUDFLARE_DEPLOY.md](CLOUDFLARE_DEPLOY.md). Other providers need a trusted authentication adapter and persistent DB; until then, use personal-key or synthetic mode. The loopback Node adapter is for local use only.
 
 The site's current sharing policy is preserved. Adding this feature does not make an owner-private site public or grant judges access automatically. Production shared live searches remain unavailable until the owner configures the server key. Sign-in and quota routes have offline/API/simulated-DOM coverage; a hosted key/sign-in walkthrough is still required before claiming end-to-end validation.
 
+## Cloudflare Workers + D1
+
+Follow [CLOUDFLARE_DEPLOY.md](CLOUDFLARE_DEPLOY.md). Cloudflare Access supplies verified email identity through the Worker runtime, handles emailed PINs, and gates the whole application for allowed visitors. Shared usage fails closed without that identity. Owner key setup uses `wrangler secret put SERPAPI_API_KEY`, not `.env` upload. The frontend uses Cloudflare Access logout instead of Sites sign-in routes on this provider.
+
 ## Git protection
 
-`.gitignore` excludes `.env`, `.env.*` (except `.env.example`), `.local/`, build output and ZIPs. Confirm locally:
+`.gitignore` excludes `.env`, `.env.*` (except `.env.example`), `.local/`, `.wrangler/`, `.dev.vars` files, build output and ZIPs. Confirm locally:
 
 ```powershell
 git check-ignore .env

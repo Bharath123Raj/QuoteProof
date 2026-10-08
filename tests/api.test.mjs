@@ -4,6 +4,15 @@ import {handleApi,buildQuery} from '../src/api.js';
 import app from '../worker/index.js';
 const items=[{name:'Test product M100',identity:'M100',quantity:2,quote:200}];
 const request=(path='/api/audit',body={items},key='test-key',headers={})=>new Request('http://localhost'+path,{method:'POST',headers:{'content-type':'application/json','x-serpapi-key':key,...headers},body:JSON.stringify(body)});
+test('watch API excludes the Desertcart multi-model combination shown in the live screenshot',async()=>{
+ const keyboard={name:'Logitech MX Keys Mini keyboard',identity:'Logitech MX Keys Mini',quantity:8,quote:11995};
+ const fake=async()=>new Response(JSON.stringify({search_metadata:{id:'mx-multiple-models'},shopping_results:[
+  {title:'Logitech MX Keys Mini Wireless Keyboard',source:'Amazon.in',price:'₹9495',link:'https://www.google.co.in/search?ibp=oshop'},
+  {title:'Logitech MX Keys Mini Wireless QWERTY + Logitech MX Anywhere 3S Compact keyboard',source:'Desertcart.ae',price:'₹27474',link:'https://www.google.co.in/search?ibp=oshop'}
+ ]}));
+ const data=await (await handleApi(request('/api/watch',{items:[keyboard],fresh:true},'multi-model-regression-key'),{},fake)).json();
+ assert.equal(data.observations[0].sellerCount,1);assert.equal(data.observations[0].rejected,1);assert.equal(data.observations[0].low,9495);assert.equal(data.observations[0].benchmark,null);assert.equal(data.observations[0].sellers[0].seller,'Amazon.in');
+});
 test('watch API excludes Business edition from a standard MX Keys Mini observation',async()=>{
  const keyboard={name:'Logitech MX Keys Mini keyboard',identity:'Logitech MX Keys Mini',quantity:8,quote:11995};
  const fake=async()=>new Response(JSON.stringify({search_metadata:{id:'mx-business-regression'},shopping_results:[

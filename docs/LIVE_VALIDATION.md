@@ -1,6 +1,6 @@
 # Live validation before submission
 
-1. Run `npm test`: expect 103 passing tests.
+1. Run `npm test`: expect 110 passing tests.
 2. Start with `npm start`; open http://localhost:3000.
 3. Click Audit in Demo mode. Confirm SYNTHETIC labels, zero searches, a ₹64,210 gap, and one rejected trap per product.
 4. In Evidence ledger, confirm the M404dw printer, renewed keyboard and 500GB SSD are excluded. Demo URLs are example.com fixture links, not real merchant offers.
@@ -50,7 +50,7 @@ User-exported live shortlists and quote audits have exercised the new flows. Com
 32. Expand **Specification sources**. Inspect its query, search ID, clickable URL and snippet. A manufacturer hostname alone is not enough: the source title must match the requested model/capacity. Wrong suffixes, mixed-model printer snippets and lookalike domains must not fill features. Community/forum posts must say discovery only and must not contribute feature evidence, even on a manufacturer hostname. Conditional wording such as “If Ethernet is an option” and questions must stay unknown.
 33. Open source pages manually. “Mentioned in source” means search text includes the feature, not that the application fetched or independently verified the page. Confirm regional variant, automatic vs manual duplex and wired Ethernet. Missing text stays unknown; explicit conflicting text remains a conflict even if another source mentions the feature.
 34. Export the new shortlist. Check candidate `specSearch` states, `specSources`, per-feature evidence URLs and request counts. Some candidates may show budget-limit or unsupported-identity states: only three Google fallbacks are allowed, and the initial recognized manufacturer list is HP, Brother, Samsung and Logitech.
-35. Re-run without cache bypass to check app-cache reporting; repeating a search ID does not prove a new price/specification observation. The fallback has 103 automated core/API/simulated-page checks and has been replayed against a user-exported live shortlist. A fresh run of the latest filtering fixes and manufacturer-page verification remain necessary.
+35. Re-run without cache bypass to check app-cache reporting; repeating a search ID does not prove a new price/specification observation. The fallback has 110 automated core/API/simulated-page checks and has been replayed against a user-exported live shortlist. A fresh run of the latest filtering fixes and manufacturer-page verification remain necessary.
 
 36. After refreshing the updated app, run or restore a completed audit. Print separately while Overview, Evidence ledger, Checkout costs and Negotiation brief are selected. Each preview must contain the overview table plus all three other sections; the report should start below the summary without an artificial full-page gap. Cancel printing and confirm the selected screen tab is unchanged. Actual PDF pagination depends on paper size and the browser/driver and has not been automatically verified.
 
@@ -81,3 +81,7 @@ User-exported live shortlists and quote audits have exercised the new flows. Com
 52. Inspect an offer whose URL opens Google Shopping. Confirm the app labels it as a Google product page, then choose a seller there; the app does not guarantee that later buying options equal the recorded listing price.
 53. On GitHub, check the first Actions run after pushing. Before staging, `git check-ignore .env` must return `.env`; after staging, `git ls-files .env` must be empty. Keep `.local/` and uploaded private reports out of the repository.
 54. On the intended host, configure the key as a server secret, verify the shared-mode identity and DB adapter, and check remaining allowance before/after a fresh search. A local `.env` does not configure a hosted deployment. Confirm judges can open the chosen demo link.
+
+55. After installing the latest source, restart the local server, refresh and run a fresh MX Keys Mini watch check. The title “Logitech MX Keys Mini Wireless QWERTY + Logitech MX Anywhere 3S Compact keyboard” must not appear in latest matching listings. Its brand/seller alone is not blacklisted; the multi-product combination fails single-unit matching. Older history remains as originally recorded.
+
+56. For direct Cloudflare hosting follow `CLOUDFLARE_DEPLOY.md`: apply D1 migrations, protect all traffic with Worker Access, allow intended emails with one-time PIN, and add the Worker secret. Verify Cloudflare sign-out, a signed-in shared live recheck, cache accounting and personal-key fallback. Confirm `/api/health` exposes no key or raw email. The 110 automated checks simulate trusted runtime context; real Cloudflare deployment, email delivery and SerpApi validation remain pending.

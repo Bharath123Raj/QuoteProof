@@ -7,3 +7,6 @@ site.tar.gz
 node_modules/
 *.zip
 .local/
+.wrangler/
+.dev.vars
+.dev.vars.*

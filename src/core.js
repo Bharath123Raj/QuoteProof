@@ -176,7 +176,13 @@ export function classifyOffer(item, raw) {
   const discoverySeller = ['desidime', 'desidimecom'].includes(normalize(seller)) || evidenceHost === 'desidime.com' || evidenceHost.endsWith('.desidime.com');
   const extraTypes = [...context.matchAll(/(?:&|\+|\band\b|\bwith\b)\s+(?:[\w-]+\s+){0,6}(mouse|webcam|headset|monitor|printer|keyboard|speaker|tablet)\b/gi)];
   const pairedGoods = extraTypes.some(match => !new RegExp('\\b' + match[1] + '\\b', 'i').test(requested));
-  const bundle = /\b(bundle|pack of|combo|mouse included)\b/i.test(context) || pairedGoods;
+  // Marketplace titles can mislabel the second MX product as a keyboard or
+  // omit its category. Separate MX model names still establish a combination.
+  // Check title/context independently so a repeated parent title is not counted
+  // as another product after a harmless connectivity phrase.
+  const multipleMxProducts = [title, String(raw.variant_context ?? '')].some(text =>
+    text.split(/\s*(?:[+&]|\band\b|\bwith\b)\s*/i).filter(part => /\bmx\s+(?:keys|mechanical|anywhere|master)\b/i.test(part)).length > 1);
+  const bundle = /\b(bundle|pack of|combo|mouse included)\b/i.test(context) || pairedGoods || multipleMxProducts;
   const macEdition = /\bmx\s+(?:keys|mechanical)\s+mini(?:\s+keyboard)?\s+for\s+mac\b/i.test(context) && !/\bfor\s+mac\b/i.test(requested);
   const mxMini = /\bmx\s+(?:keys|mechanical)\s+mini\b/i.test(requested);
   const businessLabel = text => /\b(?:for\s+business|business\s+edition)\b/i.test(text) || /\bmx\s+(?:keys|mechanical)\s+mini\s+business\b/i.test(text);

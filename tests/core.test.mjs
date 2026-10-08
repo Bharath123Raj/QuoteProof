@@ -67,6 +67,17 @@ test('conjoined webcam and mouse offers are bundles even without the word bundle
   }
   assert.equal(classifyOffer(keyboard,offer(9999,'A',{title:'Logitech MX Keys Mini keyboard Bluetooth & USB-C charging'})).eligible,true);
 });
+test('multiple MX models are bundles even when the second product is mislabelled or lacks a category',()=>{
+  const keyboard={name:'Logitech MX Keys Mini keyboard',identity:'Logitech MX Keys Mini',quantity:8,quote:11995};
+  for(const title of ['Logitech MX Keys Mini Wireless QWERTY + Logitech MX Anywhere 3S Compact keyboard','Logitech MX Keys Mini + MX Anywhere 3S','Logitech MX Keys Mini with Logitech MX Master 3S','Logitech MX Keys Mini and MX Mechanical Mini','Logitech MX Keys Mini & Logitech MX Keys Mini']){
+    const o=classifyOffer(keyboard,offer(27474,'Desertcart.ae',{title}));
+    assert.equal(o.eligible,false);assert.ok(o.reasons.includes('Bundle / pack is not a unit comparison'));
+  }
+  assert.equal(classifyOffer(keyboard,offer(9495,'Amazon.in',{title:'Logitech MX Keys Mini Wireless Keyboard'})).eligible,true);
+  assert.equal(classifyOffer(keyboard,offer(9495,'Amazon.in',{title:'Logitech MX Keys Mini keyboard Bluetooth + USB-C',variant_context:'Logitech MX Keys Mini keyboard'})).eligible,true);
+  const result=analyzeItem(keyboard,{shopping_results:[offer(9495,'Amazon.in',{title:'Logitech MX Keys Mini Wireless Keyboard'}),offer(27474,'Desertcart.ae',{title:'Logitech MX Keys Mini Wireless QWERTY + Logitech MX Anywhere 3S Compact keyboard'})]},{});
+  assert.equal(result.sellerCount,1);assert.equal(result.rejected,1);assert.equal(result.low,9495);assert.equal(result.benchmark,null);
+});
 test('Mac edition requires an explicitly requested Mac version',()=>{
   const keyboard={name:'Logitech MX Keys Mini keyboard',identity:'Logitech MX Keys Mini',quantity:8,quote:11995};
   const raw=offer(9999,'A',{title:'Logitech MX Keys Mini for Mac Minimalist Wireless Keyboard'});

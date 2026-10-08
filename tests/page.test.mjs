@@ -15,6 +15,19 @@ function mount(storage=new Map()){
   vm.runInContext(script,context);
   return {context,storage,element,evaluate:source=>vm.runInContext(source,context),setRows:items=>{rows=items.map(item=>({querySelectorAll:()=>Object.entries(item).map(([field,value])=>({dataset:{field},value:String(value)}))}));}};
 }
+test('sidebar switches all workspace pages and last saved audit restores the report without a new search',async()=>{
+  const app=mount();
+  for(const [button,view] of [['alternativesNav','alternatives'],['watchNav','watch'],['methodNav','method'],['auditNav','audit']]){
+    app.element(button).onclick();
+    for(const id of ['audit','alternatives','watch','method'])assert.equal(app.element(id+'View').hidden,id!==view);
+  }
+  const {createReport,demoResults,DEMO_ITEMS}=await import('../src/core.js');
+  const fixture=createReport(DEMO_ITEMS,demoResults(DEMO_ITEMS),'synthetic-demo');
+  app.storage.set('quoteproof-last-report',JSON.stringify(fixture));
+  app.element('methodNav').onclick();app.element('savedNav').onclick();
+  assert.equal(app.element('auditView').hidden,false);assert.equal(app.element('results').hidden,false);
+  assert.equal(app.evaluate('report.createdAt'),fixture.createdAt);assert.equal(app.evaluate('items.length'),3);
+});
 test('reload restores the edited live quote and never restores or saves the key',()=>{
   const first=mount();first.evaluate('apiKey="memory-only-secret"');first.setRows([quote]);first.element('quoteLines').oninput();first.evaluate('setMode("live")');
   assert.equal(JSON.stringify([...first.storage.values()]).includes('memory-only-secret'),false);
@@ -191,6 +204,16 @@ test('shared sign-in and exhaustion show explicit personal-key fallback',async()
  await assert.rejects(app.evaluate('ensureLiveAccess()'),/Sign in/);assert.equal(app.element('searchSignIn').hidden,false);
  app.context.problem={code:'SHARED_LIMIT',error:'Shared allowance exhausted; connect your own key.'};app.evaluate('searchFailure(problem,"Failed")');assert.equal(app.element('settingsModal').hidden,false);assert.match(app.element('sharedStatus').textContent,/exhausted/);
  app.evaluate('searchSource="personal";apiKey="my-own-key"');assert.equal(app.evaluate('liveHeaders()["x-serpapi-key"]'),'my-own-key');
+});
+test('Cloudflare account UI uses email identity and Access logout, resetting Sites links when providers change',async()=>{
+ const app=mount();
+ let shared={configured:true,signedIn:true,authProvider:'cloudflare-access',remaining:{monthly:190,daily:25}};
+ app.context.fetch=async()=>({json:async()=>({liveConfigured:shared.signedIn,shared})});
+ await app.evaluate('refreshSearchStatus()');
+ assert.equal(app.element('searchSignIn').hidden,true);assert.equal(app.element('searchSignOut').hidden,false);assert.equal(app.element('searchSignOut').href,'/cdn-cgi/access/logout');assert.match(app.element('sharedStatus').textContent,/Cloudflare Access/);
+ shared={...shared,signedIn:false};await app.evaluate('refreshSearchStatus()');assert.equal(app.element('searchSignIn').hidden,true);assert.equal(app.element('searchSignOut').hidden,true);assert.match(app.element('sharedStatus').textContent,/enable Access/);
+ shared={...shared,authProvider:'sites'};await app.evaluate('refreshSearchStatus()');assert.equal(app.element('searchSignIn').hidden,false);assert.equal(app.element('searchSignIn').href,'/signin-with-chatgpt?return_to=%2F');assert.equal(app.element('searchSignOut').href,'/signout-with-chatgpt?return_to=%2F');
+ app.context.fetch=async()=>{throw new Error('offline')};await app.evaluate('refreshSearchStatus()');assert.equal(app.element('searchSignIn').hidden,true);assert.equal(app.element('searchSignOut').hidden,true);
 });
 test('shared watch rechecks use hosted access and discard arrivals after account selection changes',async()=>{
  const app=await seedWatch();app.evaluate('searchSource="shared";apiKey="must-not-send"');let release;const pending=new Promise(r=>release=r),calls=[];

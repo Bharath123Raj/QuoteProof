@@ -12,6 +12,8 @@
     "test": "node --test tests/core.test.mjs tests/api.test.mjs tests/page.test.mjs tests/access.test.mjs",
     "build": "node scripts/assemble.mjs && bash scripts/build.sh",
     "validate": "node scripts/validate-artifact.mjs",
-    "db:generate": "node scripts/generate-db.mjs"
+    "db:generate": "node scripts/generate-db.mjs",
+    "cloudflare:configure": "node scripts/cloudflare-configure.mjs",
+    "cloudflare:check": "node scripts/cloudflare-configure.mjs"
   }
 }

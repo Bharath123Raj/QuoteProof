@@ -4,12 +4,47 @@ import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {localDatabase} from '../scripts/local-db.mjs';
-import {sharedFetch,sharedStatus,searchAccess} from '../src/access.js';
+import {sharedFetch,sharedStatus,searchAccess,withCloudflareAccess} from '../src/access.js';
 import {handleApi} from '../src/api.js';
 const identity=id=>({'oai-authenticated-user-id':id,'oai-authenticated-user-email':id+'@example.com'});
 const req=(id='A',extra={})=>new Request('https://example.chatgpt.site/api/watch',{method:'POST',headers:{'content-type':'application/json',...identity(id),...extra},body:JSON.stringify({items:[{name:'Test M100',identity:'M100',quantity:1,quote:100}],fresh:true})});
 const env=DB=>({DB,SERPAPI_API_KEY:'hosted-test-secret',AUTH_PROVIDER:'sites'});
 const fixture=()=>new Response(JSON.stringify({search_metadata:{id:'access-test'},shopping_results:['A','B','C'].map(source=>({title:'Test M100',source,price:'₹100',link:'https://example.com/'+source}))}));
+test('Cloudflare shared access rejects spoofed headers and unavailable runtime identity',async()=>{
+ const DB=localDatabase(':memory:');try{
+  const e={...env(DB),AUTH_PROVIDER:'cloudflare-access',LOCAL_OWNER:true};
+  const forged=req('forged',{'cf-access-authenticated-user-email':'fake@example.com','cf-access-jwt-assertion':'forged-token','cookie':'CF_Authorization=forged-token'});
+  for(const ctx of [undefined,{}, {access:{aud:'test-audience',getIdentity:async()=>{throw new Error('identity unavailable')}}}, {access:{getIdentity:async()=>({email:'valid@example.com'})}}, {access:{aud:'test-audience',getIdentity:async()=>({email:'invalid'})}}, {access:{aud:'test-audience',getIdentity:async()=>({email:' spaced@example.com'})}}]){
+   const bound=await withCloudflareAccess(e,ctx);
+   assert.equal((await sharedStatus(forged,bound)).signedIn,false);
+   await assert.rejects(sharedFetch(forged,bound,()=>{throw new Error('must not fetch')}),x=>x.code==='SIGN_IN_REQUIRED');
+   assert.equal((await searchAccess(req('forged',{'x-search-source':'personal','x-serpapi-key':'personal-cloudflare-test'}),bound,fixture)).source,'personal');
+  }
+  assert.equal((await DB.prepare('SELECT COUNT(*) AS n FROM search_usage').bind().first()).n,0);
+ }finally{DB.close()}
+});
+test('Cloudflare verified emails share durable quotas across requests without exposing identity',async()=>{
+ const DB=localDatabase(':memory:');try{
+  const e={...env(DB),AUTH_PROVIDER:'cloudflare-access',SHARED_MONTHLY_LIMIT:2,SHARED_USER_DAILY_LIMIT:1};
+  const bind=email=>withCloudflareAccess(e,{access:{aud:'test-audience',getIdentity:async()=>({email})}});
+  const a=await bind('Owner@Example.com'),same=await bind('owner@example.com'),b=await bind('other@example.com');
+  const fetchA=await sharedFetch(req('spoofed-one'),a,fixture),fetchSame=await sharedFetch(req('spoofed-two'),same,fixture),fetchB=await sharedFetch(req('spoofed-one'),b,fixture);
+  const results=await Promise.allSettled([fetchA('x'),fetchSame('x'),fetchB('x')]);
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,2);
+  const status=await sharedStatus(req('spoofed-three'),same);
+  assert.equal(status.authProvider,'cloudflare-access');assert.equal(status.signedIn,true);assert.deepEqual(status.remaining,{monthly:0,daily:0});
+  const rows=await DB.prepare('SELECT GROUP_CONCAT(user_id) AS identifiers FROM search_usage').bind().first();
+  assert.equal(JSON.stringify(rows).includes('@'),false);assert.equal(JSON.stringify(status).includes('@'),false);assert.equal(JSON.stringify(status).includes('hosted-test-secret'),false);
+ }finally{DB.close()}
+});
+test('assembled Worker forwards trusted Cloudflare context and never treats headers as sign-in',async()=>{
+ const {default:worker}=await import('../worker/index.js');const DB=localDatabase(':memory:');try{
+  const e={...env(DB),AUTH_PROVIDER:'cloudflare-access'},request=new Request('https://quoteproof.example.workers.dev/api/health',{headers:identity('forged')});
+  const unsigned=await (await worker.fetch(request,e)).json();assert.equal(unsigned.shared.signedIn,false);assert.equal(unsigned.liveConfigured,false);
+  const signed=await (await worker.fetch(request,e,{access:{aud:'test-audience',getIdentity:async()=>({email:'owner@example.com'})}})).json();
+  assert.equal(signed.shared.signedIn,true);assert.equal(signed.liveConfigured,true);assert.deepEqual(signed.shared.remaining,{monthly:200,daily:30});assert.equal(JSON.stringify(signed).includes('owner@example.com'),false);
+ }finally{DB.close()}
+});
 test('shared searches require trusted sign-in and persistent storage; personal keys never fall back',async()=>{
  const DB=localDatabase(':memory:');try{
   const e=env(DB),anonymous=new Request('https://example.chatgpt.site/api/watch');

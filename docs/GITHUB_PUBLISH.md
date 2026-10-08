@@ -9,7 +9,7 @@ npm test
 gh auth status
 ```
 
-Expect 103 passing checks. Confirm that gh is using the GitHub account you want to submit under. If it is signed out, run gh auth login. If another account is active, run gh auth switch and verify again. Git and GitHub CLI must already be installed.
+Expect 110 passing checks. Confirm that gh is using the GitHub account you want to submit under. If it is signed out, run gh auth login. If another account is active, run gh auth switch and verify again. Git and GitHub CLI must already be installed.
 
 ## 2. Create and push a new repository
 
@@ -30,7 +30,7 @@ Official GitHub CLI reference: https://cli.github.com/manual/gh_repo_create
 
 ## 3. Check GitHub Actions
 
-Open the repository's Actions tab. The Tests and build workflow should run after the first push. It builds the app, runs the 103 offline checks and validates the deployment module. It needs no SerpApi secret. Local checks pass, but a green hosted workflow is only confirmed after this run completes.
+Open the repository's Actions tab. The Tests and build workflow should run after the first push. It builds the app, runs the 110 offline checks and validates the deployment module. It needs no SerpApi secret. Local checks pass, but a green hosted workflow is only confirmed after this run completes.
 
 ## 4. Record and submit
 
