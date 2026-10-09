@@ -9,7 +9,7 @@ function cookies(request){return Object.fromEntries((request.headers.get('cookie
 function cookie(name,value,age){return `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;}
 const sessionCookie='__Host-qp-session',flowCookie='__Host-qp-flow';
 function base64url(bytes){return btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');}
-async function authFetch(config,path,options={},fetcher=fetch){return fetcher(config.url+'/auth/v1/'+path,{...options,redirect:'error',signal:AbortSignal.timeout(10000),headers:{apikey:config.key,...options.headers}});}
+async function authFetch(config,path,options={},fetcher=fetch){return fetcher(config.url+'/auth/v1/'+path,{...options,redirect:'manual',signal:AbortSignal.timeout(10000),headers:{apikey:config.key,...options.headers}});}
 async function verifiedUser(config,token,fetcher){
  if(!token||token.length>3500||!/^[A-Za-z0-9_.-]+$/.test(token))return null;
  const r=await authFetch(config,'user',{headers:{Authorization:'Bearer '+token}},fetcher);if(!r.ok)return null;
@@ -57,7 +57,21 @@ export async function handleAuth(request,env,fetcher=fetch){
    headers.append('set-cookie',cookie(sessionCookie,session.access_token,age));return redirect('/');
   }
   return new Response('Not found',{status:404,headers});
- }catch{
-  headers.set('content-type','text/html; charset=utf-8');return new Response('<!doctype html><title>QuoteProof sign-in</title><h1>Sign-in could not be completed</h1><p>Check the Google provider and callback configuration, or start sign-in again if it expired.</p><a href="/">Return to QuoteProof</a>',{status:400,headers});
+ }catch(error){
+  const messages = {
+    'Google login is not configured.': 'AUTH_CONFIGURATION',
+    'Login expired or was cancelled. Open QuoteProof and try signing in again.': 'FLOW_COOKIE_STATE_OR_CODE',
+    'Login could not be completed. Please try again.': 'TOKEN_EXCHANGE_REJECTED',
+    'A verified Google account is required.': 'USER_VERIFICATION_FAILED'
+  };
+  const diagnostic = messages[error.message] || 'AUTH_REQUEST_FAILED';
+  
+console.error('QuoteProof auth failure: ' + diagnostic);
+console.error('QuoteProof runtime error: ' + error.name + '; ' +
+  String(error.message)
+    .replace(/https?:\/\/\S+/g, '[URL]')
+    .replace(/[A-Za-z0-9_.-]{24,}/g, '[redacted]'));
+
+  headers.set('content-type','text/html; charset=utf-8');return new Response('<!doctype html><title>QuoteProof sign-in</title><h1>Sign-in could not be completed</h1><p>Diagnostic: '+diagnostic+'</p><p>Return to QuoteProof and start sign-in again.</p><a href="/">Return to QuoteProof</a>',{status:400,headers});
  }
 }
