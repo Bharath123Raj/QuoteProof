@@ -34,7 +34,7 @@ https://quoteproof.quoteproof.workers.dev/auth/callback?state=*
 The wildcard covers the random state query parameter. The Worker always constructs this fixed callback on its own origin. Google credentials use a different redirect URL:
 
 ```
-https://blvorawnwbcnujiapmgg.supabase.co/auth/v1/callback
+https://blvorawnwbcnujnapmgg.supabase.co/auth/v1/callback
 ```
 
 Google Auth Platform → Clients → Web application: authorized JavaScript origin `https://quoteproof.quoteproof.workers.dev`; authorized redirect URI as above. In Audience, add test users while in Testing, and publish to production before opening the demo to arbitrary Google users. Configure only identity scopes (openid, email, profile).

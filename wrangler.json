@@ -13,7 +13,7 @@
     "SHARED_MONTHLY_LIMIT": "200",
     "SHARED_USER_DAILY_LIMIT": "30",
     "SHARED_USER_MINUTE_LIMIT": "12",
-    "SUPABASE_URL": "https://blvorawnwbcnujiapmgg.supabase.co",
+    "SUPABASE_URL": "https://blvorawnwbcnujnapmgg.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_6laMcNqezfhsBFFUUANPIw_q_ZANFup"
   },
   "d1_databases": [
