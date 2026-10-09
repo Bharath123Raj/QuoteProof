@@ -1,3 +1,7 @@
+## Cloudflare Google sign-in update
+
+For the current Cloudflare deployment, use [Supabase Google authentication setup](docs/SUPABASE_DEPLOY.md). It replaces the Cloudflare Access onboarding steps below, preserves the existing D1 database and SerpApi Worker secret, and adds verified user sessions for shared search. Personal-key and synthetic modes remain available.
+
 # QuoteProof
 
 **Know before you approve.** QuoteProof audits supplier quotes against SerpApi market evidence, checks whether discovered offers describe the same product, builds a traceable negotiation brief, exposes checkout cost gaps, discovers alternatives from buyer requirements, and tracks watched models with target-price signals and traceable history.
@@ -73,9 +77,125 @@ Synthetic watches have explicit **At target**, **15% below target** and **15% ab
 
 Endpoints: `POST /api/watch` and `POST /api/watch-demo`. Both accept one to three ordinary item objects (`name`, `identity`, `quantity`, `quote`); `quote` represents the target unit amount in this route. Live accepts `fresh: true` for upstream bypass or `force: true` for app-cache bypass only. Demo accepts `demoScenario: "steady"`, `"drop"` or `"rise"`. These routes return price observations, not a purchase recommendation or tax-inclusive bulk estimate.
 
-## Cloudflare deployment
+## Update your existing GitHub project and deploy on Cloudflare
 
-Cloudflare Workers + D1 configuration and a Windows-friendly setup command are included. Follow [the deployment guide](docs/CLOUDFLARE_DEPLOY.md) to create the database, apply migrations, enable Cloudflare Access email PIN sign-in, and set your SerpApi key as a Worker secret. Shared credits accept only Cloudflare-verified runtime identity; forged client identity headers cannot enable them. The initial setup protects the whole app with an email allowlist. Personal-key and synthetic modes remain available after sign-in. Actual deployment and hosted PIN/real-key verification must be completed in your Cloudflare account.
+Use your existing local Git checkout. Update its files, commit and push to the same repository, then deploy from that folder with Wrangler. Pushing to GitHub runs the test workflow; it does not automatically deploy this app to Cloudflare.
+
+### 1. Copy the updated files into your existing project
+
+Extract the latest QuoteProof ZIP to a separate temporary folder. Copy the contents of its inner `QuoteProof` folder into the existing project folder that contains `package.json`, replacing the supplied source, scripts, tests, docs and configuration files. Keep your existing `.git` directory, filled `.env` and `.local` directory. Skip the ZIP's blank `.env` when copying. Avoid creating a second nested `QuoteProof` folder.
+
+The Cloudflare update includes:
+
+| Files | Purpose |
+| --- | --- |
+| `wrangler.json` | Worker entrypoint, D1 binding and non-secret shared limits |
+| `scripts/cloudflare-configure.mjs` | Set your D1 database ID and reject the placeholder before deployment |
+| `package.json`, `scripts/assemble.mjs`, `worker/index.js` | Windows-friendly setup commands and assembled Worker with runtime identity forwarding |
+| `src/access.js`, `src/page.html` | Verified Cloudflare email identity, shared-credit protection and provider-specific sign-out |
+| `.gitignore`, `.env.example` | Keep local keys, private database and Wrangler state out of Git |
+| `tests/access.test.mjs`, `tests/page.test.mjs` | Authentication, quota and account-UI regressions |
+| `README.md`, `docs/` | Setup, deployment and verification instructions |
+
+If you already configured your real Cloudflare database, preserve that `database_id` when updating `wrangler.json`. The ZIP ships an all-zero placeholder. Your local `.env` is for `npm start`; Cloudflare needs its own Worker secret.
+
+Open PowerShell **in the existing project folder**, then check that Git recognizes it and regenerate the Worker:
+
+```powershell
+git rev-parse --show-toplevel
+npm run assemble
+npm test
+git check-ignore .env
+```
+
+Expected: your existing Git root, **110 passing tests**, and `.env` printed as ignored. Stop if tests fail. If Git does not recognize this directory, switch to the local checkout you originally pushed.
+
+### 2. Commit and push the updated project
+
+```powershell
+git status
+git add .
+git diff --cached --name-only
+git commit -m "Add Cloudflare deployment and email authentication"
+git push
+```
+
+Review the staged filenames before committing; they should exclude your filled `.env`, `.local` and `.wrangler` directories. Open your repository's **Actions** tab and wait for **Tests and build** to pass. Your existing `.git` keeps the same GitHub remote and history.
+
+### 3. Sign in to Cloudflare and create D1
+
+Create a Cloudflare account if needed, then run from the same project folder:
+
+```powershell
+npx --yes wrangler@4 login
+npx --yes wrangler@4 whoami
+npx --yes wrangler@4 d1 create quoteproof
+```
+
+The login command opens a browser. Confirm the intended Cloudflare account. Copy the `database_id` UUID printed by `d1 create`. If asked to automatically add a binding, decline because the supplied configuration already contains `DB`. If you already created this database, use `npx --yes wrangler@4 d1 list` to find its ID and reuse it.
+
+Replace `YOUR_DATABASE_ID` below with that actual UUID:
+
+```powershell
+npm run cloudflare:configure -- YOUR_DATABASE_ID
+npm run cloudflare:check
+git add wrangler.json
+git commit -m "Configure Cloudflare D1 database"
+git push
+```
+
+The database ID is public configuration and can be committed. If Git says there is nothing to commit, the same ID was already saved. Keep secrets out of `wrangler.json`.
+
+### 4. Apply the migration and deploy the Worker
+
+```powershell
+npx --yes wrangler@4 d1 migrations apply DB --remote
+npx --yes wrangler@4 deploy
+```
+
+Confirm applying the migration when prompted. Deployment builds the Worker with Node commands; Windows does not need Bash for this path. Copy and open the **actual workers.dev URL returned by Wrangler**. This is your new Cloudflare deployment URL. Synthetic and personal-key modes are available initially; shared credits remain blocked until verified Access identity and the server secret are configured.
+
+### 5. Enable email sign-in
+
+In [Cloudflare dashboard](https://dash.cloudflare.com), enable **Zero Trust** and select its Free plan for the initial demo:
+
+1. **Zero Trust → Integrations → Identity providers → Add new identity provider → One-time PIN**.
+2. **Workers & Pages → quoteproof → Access → Protect this Worker behind Access**. Choose **All traffic**, configure an initial policy allowing you to sign in, and apply it.
+3. Edit the created application under **Zero Trust → Access → Applications**. Set an **Allow** policy with **Include → Emails**, containing your email and intended teammates/reviewers. Select **One-time PIN** as a login method. Remove any unintended broad policy created during setup.
+4. Open your deployed URL in a private browser window and sign in using the emailed PIN.
+
+This setup requires an allowed email and PIN for the **whole app**, including synthetic and personal-key modes. Reviewers need allowed emails; they do not need Cloudflare accounts. Shared credits use only Cloudflare's verified runtime identity. Cloudflare Access Free is intended for small teams under 50 users; this initial setup is a limited demo. Dashboard labels can vary. See the [official Worker Access guide](https://developers.cloudflare.com/workers/configuration/cloudflare-access/).
+
+### 6. Store your SerpApi key privately
+
+After checking Access, run:
+
+```powershell
+npx --yes wrangler@4 secret put SERPAPI_API_KEY
+```
+
+Paste the key only at Wrangler's secret prompt. This stores a Worker secret and deploys the secret update. The local `.env` is not uploaded. The hosted configuration already selects `AUTH_PROVIDER=cloudflare-access` and caps shared outbound attempts at 200/month globally, 30/day per user and 12/minute per user. These are app limits, not your SerpApi account balance.
+
+### 7. Check the deployed project
+
+Sign in, open **Search settings → Use QuoteProof credits**, and perform one fresh live watch recheck. Check search metadata and the decrease in shared allowance. Repeat with fresh results disabled: if the app cache serves it, no new attempt should be counted. Then verify personal-key mode, sign-out, audit/discovery, exports and print. Browser-local data from localhost does not move automatically to the Cloudflare origin.
+
+Automated tests mock SerpApi responses and simulate Cloudflare identity. The Worker upload dry run and local D1 migration passed during preparation; actual hosted email PIN, remote D1 and real-key searches must be validated in your Cloudflare account. See [the full deployment guide](docs/CLOUDFLARE_DEPLOY.md) for detailed checks and troubleshooting.
+
+### Future updates
+
+After changing `src/`, regenerate, test, commit, push and deploy:
+
+```powershell
+npm run assemble
+npm test
+git add .
+git commit -m "Update QuoteProof"
+git push
+npx --yes wrangler@4 deploy
+```
+
+Wait for the GitHub workflow to pass before deploying. Reuse your existing database and Worker secret. If you add SQL migrations, apply them remotely before deploying the corresponding code. No automatic Cloudflare deployment is configured in GitHub Actions.
 
 ## Core functionality
 

@@ -2,12 +2,29 @@
 
 Use Workers, not Pages. The app serves its page and API from one Worker; D1 stores shared-search usage. Cloudflare Access handles email sign-in. No paid domain is required: Wrangler returns a workers.dev URL.
 
-## 1. Update your project
+## 1. Update, commit and push your existing project
 
-Extract the latest ZIP. If you already pushed a repository, copy the updated project files into that existing Git folder, keeping your existing `.git`, filled `.env` and `.local` directory. Run these commands from the folder containing `package.json` and `wrangler.json`, using PowerShell and Node 22.13+:
+Extract the latest ZIP to a separate temporary folder. Copy the files inside its `QuoteProof` folder into your existing local Git checkout, replacing source, scripts, docs, tests and configuration. Keep your existing `.git`, filled `.env` and `.local` directory; skip the ZIP's blank `.env`. Copy the contents into the existing root, rather than creating another nested `QuoteProof` directory. If your Cloudflare database ID was already configured, preserve it when replacing `wrangler.json`.
+
+Open PowerShell in the folder containing `package.json`, using Node 22.13+:
 
 ```powershell
+git rev-parse --show-toplevel
+npm run assemble
 npm test
+git check-ignore .env
+git status
+git add .
+git diff --cached --name-only
+git commit -m "Add Cloudflare Workers deployment and email authentication"
+git push
+```
+
+Expect 110 passing tests and `.env` reported as ignored. Review staged filenames before committing. Open your repository's Actions tab and wait for Tests and build to pass. GitHub push does not automatically deploy to Cloudflare in this project.
+
+## Create D1 and deploy from the same folder
+
+```powershell
 npx --yes wrangler@4 login
 npx --yes wrangler@4 whoami
 npx --yes wrangler@4 d1 create quoteproof
@@ -20,15 +37,18 @@ Copy the new **database_id** UUID shown by `d1 create`. If Wrangler offers to ad
 ```powershell
 npm run cloudflare:configure -- YOUR_DATABASE_ID
 npm run cloudflare:check
+git add wrangler.json
+git commit -m "Configure Cloudflare D1 database"
+git push
 npx --yes wrangler@4 d1 migrations apply DB --remote
 npx --yes wrangler@4 deploy
 ```
 
-Confirm applying the initial migration when prompted. If the database already exists, use `npx --yes wrangler@4 d1 list` to find its ID rather than creating a second one. Use the same account and database on future deployments so counters persist.
+Confirm applying the initial migration when prompted. If the database already exists, use `npx --yes wrangler@4 d1 list` to find its ID rather than creating a second one. Use the same account and database on future deployments so counters persist. If the same database ID is already committed, Git may report nothing to commit; continue with migration and deployment.
 
 The configuration helper prevents deployment with the supplied all-zero placeholder ID. Database IDs are non-secret configuration and may be committed. The Cloudflare build runs Node commands and works on Windows without Bash. The existing `npm run build` remains the separate Sites/Linux artifact build.
 
-At this stage the Worker serves synthetic and personal-key modes. Shared mode fails closed until both the server key and verified Cloudflare identity are available.
+Copy the actual workers.dev URL printed by Wrangler. At this stage the Worker serves synthetic and personal-key modes. Shared mode fails closed until both the server key and verified Cloudflare identity are available.
 
 ## 2. Enable email sign-in
 
@@ -78,19 +98,27 @@ Shared limits count actual outbound attempts, including failed attempts, rather 
 
 Automated tests use mocked upstream responses and simulated Cloudflare context. A Wrangler upload dry run is not a real deployment or real Access/PIN/SerpApi validation. Do the above in your account before claiming hosted end-to-end verification.
 
-## 5. Push the update and redeploy changes
+## 5. Future updates
 
-From your existing Git checkout, after verifying `.env` is ignored:
+From your existing Git checkout, after editing source and checking `.env` is ignored:
 
 ```powershell
-git check-ignore .env
+npm run assemble
+npm test
 git status
 git add .
-git commit -m "Add Cloudflare Workers deployment and email authentication"
+git diff --cached --name-only
+git commit -m "Update QuoteProof"
 git push
 ```
 
-Wait for the GitHub Tests and build workflow to pass. Future code updates deploy with `npx --yes wrangler@4 deploy`; this command preserves the Worker secret. Run remote migrations before deployment when SQL migrations change. No automatic Cloudflare deployment is configured in GitHub Actions.
+Wait for the GitHub Tests and build workflow to pass, then deploy:
+
+```powershell
+npx --yes wrangler@4 deploy
+```
+
+This command preserves the Worker secret. Run remote migrations before deployment when SQL migrations change. No automatic Cloudflare deployment is configured in GitHub Actions. Reuse the existing D1 database so usage counters persist.
 
 `.gitignore` excludes `.env`, `.dev.vars`, `.local`, `.wrangler`, node_modules and ZIP/build outputs. Never commit a filled secret file.
 

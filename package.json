@@ -9,11 +9,12 @@
   "scripts": {
     "assemble": "node scripts/assemble.mjs",
     "start": "node scripts/serve.mjs",
-    "test": "node --test tests/core.test.mjs tests/api.test.mjs tests/page.test.mjs tests/access.test.mjs",
+    "test": "node --test tests/core.test.mjs tests/api.test.mjs tests/page.test.mjs tests/access.test.mjs tests/supabase.test.mjs",
     "build": "node scripts/assemble.mjs && bash scripts/build.sh",
     "validate": "node scripts/validate-artifact.mjs",
     "db:generate": "node scripts/generate-db.mjs",
     "cloudflare:configure": "node scripts/cloudflare-configure.mjs",
-    "cloudflare:check": "node scripts/cloudflare-configure.mjs"
+    "cloudflare:check": "node scripts/cloudflare-configure.mjs",
+    "supabase:configure": "node scripts/supabase-configure.mjs"
   }
 }

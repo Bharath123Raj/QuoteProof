@@ -221,3 +221,12 @@ test('shared watch rechecks use hosted access and discard arrivals after account
  const run=app.element('recheckWatch').onclick();for(let i=0;i<8;i++)await Promise.resolve();assert.ok(calls.includes('/api/watch'));
  app.evaluate('searchRevision++;searchSource="personal"');release();await run;assert.equal(app.evaluate('watchlist[0].history.length'),1);assert.match(app.element('watchProgress').textContent,/1 changed or removed watches skipped/);
 });
+
+test('Supabase settings use Google login and POST sign-out without exposing tokens',async()=>{
+ const app=mount();app.context.fetch=async()=>({json:async()=>({shared:{configured:true,signedIn:false,authProvider:'supabase'}})});
+ await app.evaluate('refreshSearchStatus()');assert.equal(app.element('searchSignIn').hidden,false);assert.equal(app.element('searchSignIn').href,'/auth/login');assert.equal(app.element('searchSignIn').textContent,'Sign in with Google');assert.equal(app.element('searchSignOut').hidden,true);
+ app.context.fetch=async()=>({json:async()=>({shared:{configured:true,signedIn:true,authProvider:'supabase',remaining:{monthly:199,daily:29}}})});
+ await app.evaluate('refreshSearchStatus()');assert.equal(app.element('searchSignIn').hidden,true);assert.equal(app.element('searchSignOut').hidden,false);assert.match(app.element('sharedStatus').textContent,/Google/);
+ let called=false;app.context.window.location={};app.context.fetch=async(url,opts)=>{assert.equal(url,'/auth/logout');assert.equal(opts.method,'POST');called=true;return {}};
+ await app.element('searchSignOut').onclick({preventDefault(){}});assert.equal(called,true);assert.equal(app.context.window.location.href,'/');
+});

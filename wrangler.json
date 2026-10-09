@@ -1,31 +1,33 @@
 {
-	"$schema": "https://unpkg.com/wrangler@4/config-schema.json",
-	"name": "quoteproof",
-	"main": "worker/index.js",
-	"compatibility_date": "2026-10-08",
-	"workers_dev": true,
-	"preview_urls": false,
-	"build": {
-		"command": "npm run cloudflare:check && npm run assemble"
-	},
-	"vars": {
-		"AUTH_PROVIDER": "cloudflare-access",
-		"SHARED_MONTHLY_LIMIT": "200",
-		"SHARED_USER_DAILY_LIMIT": "30",
-		"SHARED_USER_MINUTE_LIMIT": "12"
-	},
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "quoteproof",
-			"database_id": "00000000-0000-0000-0000-000000000000",
-			"migrations_dir": "drizzle"
-		},
-		{
-			"binding": "quoteproof",
-			"database_name": "quoteproof",
-			"database_id": "3ea10182-4b03-4145-a089-ab0d814aba81",
-			"remote": true
-		}
-	]
+  "$schema": "https://unpkg.com/wrangler@4/config-schema.json",
+  "name": "quoteproof",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-08",
+  "workers_dev": true,
+  "preview_urls": false,
+  "build": {
+    "command": "npm run cloudflare:check && npm run assemble"
+  },
+  "vars": {
+    "AUTH_PROVIDER": "supabase",
+    "SHARED_MONTHLY_LIMIT": "200",
+    "SHARED_USER_DAILY_LIMIT": "30",
+    "SHARED_USER_MINUTE_LIMIT": "12",
+    "SUPABASE_URL": "https://blvorawnwbcnujiapmgg.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_6laMcNqezfhsBFFUUANPIw_q_ZANFup"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "quoteproof",
+      "database_id": "3ea10182-4b03-4145-a089-ab0d814aba81",
+      "migrations_dir": "drizzle"
+    },
+    {
+      "binding": "quoteproof",
+      "database_name": "quoteproof",
+      "database_id": "3ea10182-4b03-4145-a089-ab0d814aba81",
+      "remote": true
+    }
+  ]
 }

@@ -1,3 +1,4 @@
+import {supabaseUserIdentity} from './supabase.js';
 // Shared requests are counted before each actual upstream fetch, including
 // failed attempts. This is an app budget, not a SerpApi billing meter.
 const cloudflareIdentity = Symbol('verified Cloudflare identity');
@@ -25,6 +26,7 @@ export function sharedLimits(env) {
 export function sharedIdentity(request,env) {
   // Only the loopback Node adapter may set LOCAL_OWNER as a boolean.
   if(env.LOCAL_OWNER===true)return 'local-owner';
+  if(env.AUTH_PROVIDER==='supabase')return supabaseUserIdentity(env);
   if(env.AUTH_PROVIDER==='cloudflare-access')return env[cloudflareIdentity]||null;
   // These headers must be supplied by Sites dispatch, not a public proxy.
   if(env.AUTH_PROVIDER!=='sites')return null;
@@ -38,7 +40,7 @@ async function usageIdentity(request,env) {
 }
 export async function sharedStatus(request,env) {
   const configured=Boolean(env.SERPAPI_API_KEY&&env.DB),signedIn=Boolean(sharedIdentity(request,env)),limits=sharedLimits(env);
-  const status={configured,signedIn,authProvider:env.LOCAL_OWNER===true?'local-owner':['sites','cloudflare-access'].includes(env.AUTH_PROVIDER)?env.AUTH_PROVIDER:'unconfigured',limits,remaining:null};
+  const status={configured,signedIn,authProvider:env.LOCAL_OWNER===true?'local-owner':['sites','cloudflare-access','supabase'].includes(env.AUTH_PROVIDER)?env.AUTH_PROVIDER:'unconfigured',limits,remaining:null};
   if(!configured||!signedIn)return status;
   try{
     const user=await usageIdentity(request,env),day=new Date().toISOString().slice(0,10),month=day.slice(0,7);
